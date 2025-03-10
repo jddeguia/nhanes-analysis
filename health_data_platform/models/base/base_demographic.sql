@@ -5,7 +5,7 @@
 }}
 
 {% set rename_dict = {
-    "AIALANGA": "ai_language",
+    "AIALANGA": "language",
     "DMDBORN4": "respondent_birth_country",
     "DMDCITZN": "respondent_us_citizen",
     "DMDEDUC2": "respondent_education_level",
