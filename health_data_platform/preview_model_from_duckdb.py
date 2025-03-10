@@ -10,8 +10,8 @@ conn = duckdb.connect(database='./dev.duckdb', read_only=False)
 #     print(table[0])
 
 # Preview first 5 rows of a specific table
-table_name = "base_demographic"  # Change this to any table you want to preview
-preview_query = f"SELECT DISTINCT fia_language_spoken, language FROM {table_name}"
+table_name = "stg_health_insurance_questionnaire"  # Change this to any table you want to preview
+preview_query = f"SELECT DISTINCT coded_response FROM {table_name}  WHERE question_code = 'HIQ031A'"
 preview_data = conn.execute(preview_query).df()
 print(f"\nFirst 5 rows of {table_name}:")
 print(preview_data)
