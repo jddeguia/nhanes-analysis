@@ -90,10 +90,10 @@ df_long = df.melt(id_vars=["SEQN"], var_name="question_code", value_name="respon
 # 🔹 Add question type based on the mapping
 df_long["question_type"] = df_long["question_code"].map(column_classification)
 
-# 🔹 Save the cleaned dataset in UTF-8 encoding
-output_file = "questionnaire_unpivoted.csv"
-df_long.to_csv(output_file, index=False, encoding="utf-8")
+# 🔹 Export separate CSV files for each question type
+for question_type, group_df in df_long.groupby('question_type'):
+    output_file = f"questionnaire_{question_type.replace(' ', '_')}.csv"
+    group_df.to_csv(output_file, index=False, encoding="utf-8")
+    print(f"✅ {question_type} data saved to: {output_file}")
 
-# Display result
-print(df_long.head())
-print(f"✅ Unpivoted dataset saved to: {output_file} (UTF-8 encoding)")
+
