@@ -1,2 +1,4 @@
 health/
 logs/
+dev.duckdb
+dev.duckdb.wal
