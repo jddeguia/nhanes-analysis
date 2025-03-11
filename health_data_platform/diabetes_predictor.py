@@ -7,7 +7,7 @@ from sklearn.metrics import classification_report, accuracy_score
 from imblearn.over_sampling import SMOTE
 
 # Load your dataset
-df = pd.read_csv("your_data.csv")  # Replace with actual file
+df = pd.read_csv("final_merged_data.csv")  # Replace with actual file
 
 # Drop non-numeric columns (or encode them properly if needed)
 df = df.select_dtypes(include=[np.number])
