@@ -5,13 +5,7 @@ conn = duckdb.connect(database='./dev.duckdb', read_only=False)
 
 # List of tables to query
 tables = [
-    "mart_egames",
-    "mom_analysis_by_domain",
-    "mom_analysis_by_region",
-    "mom_analysis_by_sport",
-    "yoy_analysis_by_domain",
-    "yoy_analysis_by_region",
-    "yoy_analysis_by_sport",
+    "mart_demographic"
 ]
 
 # Loop through each table and export its data to a CSV file
