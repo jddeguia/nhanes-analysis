@@ -3,77 +3,72 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import re
 
-# Step 1: Scrape NHANES variable data
-url = "https://wwwn.cdc.gov/Nchs/Nhanes/Search/variablelist.aspx?Component=Laboratory&CycleBeginYear=2013"
-response = requests.get(url)
-soup = BeautifulSoup(response.text, 'html.parser')
+# Constants
+NHANES_URL = "https://wwwn.cdc.gov/Nchs/Nhanes/Search/variablelist.aspx?Component=Laboratory&CycleBeginYear=2013"
+LABS_FILE = "labs.csv"
+MEDICATIONS_FILE = "medications.csv"
+OUTPUT_FILE = "final_merged_data.csv"
 
-table = soup.find('table', {'class': 'table'})
-rows = table.find_all('tr')[1:]  # Skip header row
+# Function to scrape NHANES variable data
+def scrape_nhanes_variable_data(url):
+    response = requests.get(url)
+    response.raise_for_status()  # Raise an error for bad responses
 
-data = []
-for row in rows:
-    cols = row.find_all('td')
-    if len(cols) >= 2:
-        variable_name = cols[0].text.strip()
-        variable_description = cols[1].text.strip()
-        data.append([variable_name, variable_description])
+    soup = BeautifulSoup(response.text, 'html.parser')
+    table = soup.find('table', {'class': 'table'})
 
-df_nhanes = pd.DataFrame(data, columns=["Variable Name", "Variable Description"])
+    if not table:
+        raise ValueError("No table found on the NHANES page.")
 
-# Function to standardize column names
-def standardize_column_name(name):
-    name = name.lower().strip()
-    name = re.sub(r'\s+', '_', name)  
-    name = re.sub(r'[^a-z0-9_]', '', name)  
-    return name
+    rows = table.find_all('tr')[1:]  # Skip header row
+    data = [[col.text.strip() for col in row.find_all('td')[:2]] for row in rows if len(row.find_all('td')) >= 2]
 
-# Shorten long column names
-def shorten_column_name(name, max_length=30):
-    if len(name) > max_length:
-        words = name.split('_')
-        short_name = '_'.join(words[:3])  
-        return short_name[:max_length]  
-    return name
+    return pd.DataFrame(data, columns=["Variable Name", "Variable Description"])
 
-# Step 2: Load and clean labs.csv
-df_labs = pd.read_csv("labs.csv", encoding="ISO-8859-1")
+# Function to standardize and shorten column names
+def clean_column_name(name, max_length=30):
+    """ Standardize and shorten column names """
+    name = re.sub(r'\s+', '_', name.strip().lower())  # Replace spaces with underscores
+    name = re.sub(r'[^a-z0-9_]', '', name)  # Remove special characters
+    return name[:max_length] if len(name) > max_length else name  # Shorten if necessary
 
-# Remove suffixes (.x, .y)
-df_labs.columns = df_labs.columns.str.replace(r'\.[xy]$', '', regex=True)
+# Function to clean and map lab data
+def clean_labs_data(df, nhanes_dict):
+    df.columns = df.columns.str.replace(r'\.[xy]$', '', regex=True)  # Remove suffixes (.x, .y)
+    df.columns = [clean_column_name(nhanes_dict.get(col, col)) for col in df.columns]  # Map and clean column names
+    return df
 
-# Replace column names using NHANES mapping
-nhanes_dict = dict(zip(df_nhanes["Variable Name"], df_nhanes["Variable Description"]))
-new_columns = [nhanes_dict.get(col, col) for col in df_labs.columns]
+# Function to process medications data
+def process_medications_data(df):
+    diabetes_pattern = r"\bdiabet\w*\b"
+    df["diabetes_flag"] = df["RXDRSD1"].str.contains(diabetes_pattern, case=False, na=False, regex=True).astype(int)
+    df = df[df["diabetes_flag"] == 1][["SEQN", "diabetes_flag"]]  # Filter diabetes-related medications
+    df.rename(columns={"SEQN": "respondent_id"}, inplace=True)
+    return df
 
-# Standardize and shorten column names
-new_columns = [shorten_column_name(standardize_column_name(col)) for col in new_columns]
-df_labs.columns = new_columns
+# Function to merge datasets
+def merge_data(df_labs, df_medications):
+    df_merged = df_labs.merge(df_medications, how="left", left_on="respondent_sequence_number", right_on="respondent_id")
+    df_merged["diabetes_flag"] = df_merged["diabetes_flag"].fillna(0).astype(int)  # Fill missing values
+    return df_merged.drop_duplicates()
 
-# Step 3: Process medications.csv
-df_medications = pd.read_csv("medications.csv", encoding="ISO-8859-1")
+# Main execution
+try:
+    # Scrape NHANES variable data
+    df_nhanes = scrape_nhanes_variable_data(NHANES_URL)
+    nhanes_dict = dict(zip(df_nhanes["Variable Name"], df_nhanes["Variable Description"]))
 
-# Flag diabetes-related medications
-diabetes_pattern = r"\bdiabet\w*\b"
-df_medications["diabetes_flag"] = df_medications["RXDRSD1"].str.contains(diabetes_pattern, case=False, na=False, regex=True).astype(int)
+    # Load and clean lab data
+    df_labs = clean_labs_data(pd.read_csv(LABS_FILE, encoding="ISO-8859-1"), nhanes_dict)
 
-# Drop rows where diabetes_flag is 0
-df_medications = df_medications[df_medications["diabetes_flag"] == 1]
+    # Load and process medications data
+    df_medications = process_medications_data(pd.read_csv(MEDICATIONS_FILE, encoding="ISO-8859-1"))
 
-# Rename SEQN to respondent_id
-df_medications = df_medications.rename(columns={"SEQN": "respondent_id"})
+    # Merge and save final dataset
+    df_final = merge_data(df_labs, df_medications)
+    df_final.to_csv(OUTPUT_FILE, index=False)
 
-# Retain only relevant columns
-df_medications = df_medications[["respondent_id", "diabetes_flag"]]
+    print(f"Merged data saved to {OUTPUT_FILE}")
 
-# Step 4: Join labs and medications data
-df_merged = df_labs.merge(df_medications, how="left", left_on="respondent_sequence_number", right_on="respondent_id")
-
-# Fill missing diabetes_flag values with 0 (i.e., those who didn't have diabetes-related medication)
-df_merged["diabetes_flag"] = df_merged["diabetes_flag"].fillna(0).astype(int)
-
-df_deduplicated = df_merged.drop_duplicates()
-# Save merged dataset
-
-df_deduplicated.to_csv("final_merged_data.csv", index=False)
-print("Merged data saved to merged_data.csv")
+except Exception as e:
+    print(f"Error: {e}")
