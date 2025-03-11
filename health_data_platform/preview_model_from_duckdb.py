@@ -3,17 +3,11 @@ import duckdb
 # Connect to the DuckDB database
 conn = duckdb.connect(database='./dev.duckdb', read_only=False)
 
-# Show present tables
-# tables = conn.execute("SHOW TABLES").fetchall()
-# print("Tables in DuckDB:")
-# for table in tables:
-#     print(table[0])
 
-# Preview first 5 rows of a specific table
-table_name = "stg_health_insurance_questionnaire"  # Change this to any table you want to preview
-preview_query = f"SELECT DISTINCT coded_response FROM {table_name}  WHERE question_code = 'HIQ031A'"
+table_name = "mart_private_health_insurance_by_age_group"  # Change this to any table you want to preview
+preview_query = f"SELECT * FROM {table_name} ORDER BY 1"
 preview_data = conn.execute(preview_query).df()
-print(f"\nFirst 5 rows of {table_name}:")
+print(f"\nQuery Result:")
 print(preview_data)
 
 conn.close()
