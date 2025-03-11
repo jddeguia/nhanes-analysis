@@ -14,43 +14,57 @@ def scrape_nhanes_variable_data(url):
     response = requests.get(url)
     response.raise_for_status()  # Raise an error for bad responses
 
-    soup = BeautifulSoup(response.text, 'html.parser')
-    table = soup.find('table', {'class': 'table'})
+    soup = BeautifulSoup(response.text, "html.parser")
+    table = soup.find("table", {"class": "table"})
 
     if not table:
         raise ValueError("No table found on the NHANES page.")
 
-    rows = table.find_all('tr')[1:]  # Skip header row
-    data = [[col.text.strip() for col in row.find_all('td')[:2]] for row in rows if len(row.find_all('td')) >= 2]
+    rows = table.find_all("tr")[1:]  # Skip header row
+    data = [[col.text.strip() for col in row.find_all("td")[:2]] for row in rows if len(row.find_all("td")) >= 2]
 
     return pd.DataFrame(data, columns=["Variable Name", "Variable Description"])
 
 # Function to standardize and shorten column names
 def clean_column_name(name, max_length=30):
     """ Standardize and shorten column names """
-    name = re.sub(r'\s+', '_', name.strip().lower())  # Replace spaces with underscores
-    name = re.sub(r'[^a-z0-9_]', '', name)  # Remove special characters
+    name = re.sub(r"\s+", "_", name.strip().lower())  # Replace spaces with underscores
+    name = re.sub(r"[^a-z0-9_]", "", name)  # Remove special characters
     return name[:max_length] if len(name) > max_length else name  # Shorten if necessary
 
 # Function to clean and map lab data
 def clean_labs_data(df, nhanes_dict):
-    df.columns = df.columns.str.replace(r'\.[xy]$', '', regex=True)  # Remove suffixes (.x, .y)
+    if "SEQN" not in df.columns:
+        raise ValueError("Missing 'SEQN' column in labs file.")
+
+    df.rename(columns={"SEQN": "respondent_sequence_number"}, inplace=True)
+    df.columns = df.columns.str.replace(r"\.[xy]$", "", regex=True)  # Remove suffixes (.x, .y)
     df.columns = [clean_column_name(nhanes_dict.get(col, col)) for col in df.columns]  # Map and clean column names
     return df
 
 # Function to process medications data
 def process_medications_data(df):
+    if "SEQN" not in df.columns or "RXDRSD1" not in df.columns:
+        raise ValueError("Missing required columns in medications file.")
+
     diabetes_pattern = r"\bdiabet\w*\b"
     df["diabetes_flag"] = df["RXDRSD1"].str.contains(diabetes_pattern, case=False, na=False, regex=True).astype(int)
-    df = df[df["diabetes_flag"] == 1][["SEQN", "diabetes_flag"]]  # Filter diabetes-related medications
+    df = df[df["diabetes_flag"] == 1][["SEQN", "diabetes_flag"]]  # Keep only relevant data
     df.rename(columns={"SEQN": "respondent_id"}, inplace=True)
     return df
 
 # Function to merge datasets
 def merge_data(df_labs, df_medications):
+    if "respondent_sequence_number" not in df_labs.columns:
+        raise ValueError("Missing 'respondent_sequence_number' column in lab data.")
+
     df_merged = df_labs.merge(df_medications, how="left", left_on="respondent_sequence_number", right_on="respondent_id")
-    df_merged["diabetes_flag"] = df_merged["diabetes_flag"].fillna(0).astype(int)  # Fill missing values
-    return df_merged.drop_duplicates()
+
+    # Fill missing diabetes_flag values with 0
+    df_merged["diabetes_flag"] = df_merged["diabetes_flag"].fillna(0).astype(int)
+
+    # Drop respondent_id since it's redundant after merging
+    return df_merged.drop(columns=["respondent_id"], errors="ignore").drop_duplicates()
 
 # Main execution
 try:
