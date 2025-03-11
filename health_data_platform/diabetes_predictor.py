@@ -51,12 +51,30 @@ for fold, (train_idx, test_idx) in enumerate(tqdm(kf.split(X, y), total=kf.get_n
     X_test_scaled = scaler.transform(X_test)
 
     # Feature Selection using Random Forest
+    # Feature Selection using Random Forest
     logging.info("Selecting top 15 features using Random Forest...")
     feature_selector = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
     feature_selector.fit(X_train_scaled, y_train_resampled)
 
     feature_importance = feature_selector.feature_importances_
-    top_features_idx = np.argsort(feature_importance)[-15:]  # Select top 15 features
+
+    # Extract feature names
+    feature_names = np.array(X.columns)  # Convert to NumPy array for indexing
+
+    # Get top 15 features with their importance scores
+    top_features_idx = np.argsort(feature_importance)[-15:]  # Indices of top features
+    top_features = feature_names[top_features_idx]  # Get feature names
+    top_importance = feature_importance[top_features_idx]  # Get importance scores
+
+    # Sort by importance (descending order)
+    sorted_idx = np.argsort(top_importance)[::-1]
+    sorted_features = top_features[sorted_idx]
+    sorted_importance = top_importance[sorted_idx]
+
+    # Print top 15 features with importance values
+    print("\nTop 15 Most Important Features:")
+    for rank, (feature, importance) in enumerate(zip(sorted_features, sorted_importance), 1):
+        print(f"{rank}. {feature} - Importance Score: {importance:.4f}")
 
     X_train_selected = X_train_scaled[:, top_features_idx]
     X_test_selected = X_test_scaled[:, top_features_idx]
