@@ -12,7 +12,7 @@ A Python script extracts NHANES questionnaire variable names and descriptions fr
 - The extracted data is used to map question codes to their definitions in dbt models.
 
 ## 2. Base Layer (dbt Processing)
-- Loads raw questionnaire data from the source database.
+- Loads raw questionnaire data from the source database by using dbt seed
 - Integrates metadata by mapping question codes to definitions.
 - Ensures each record contains:
   - **Respondent ID** (unique identifier)
