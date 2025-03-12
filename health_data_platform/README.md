@@ -1,15 +1,14 @@
-Welcome to your new dbt project!
-
-### Using the starter project
-
-Try running the following commands:
-- dbt run
-- dbt test
+# dbt Project Overview
+![dbt_project_flowchart](https://github.com/user-attachments/assets/ffb5ffc9-86b7-4dba-bd26-d94f25c08944)
 
 
-### Resources:
-- Learn more about dbt [in the docs](https://docs.getdbt.com/docs/introduction)
-- Check out [Discourse](https://discourse.getdbt.com/) for commonly asked questions and answers
-- Join the [chat](https://community.getdbt.com/) on Slack for live discussions and support
-- Find [dbt events](https://events.getdbt.com) near you
-- Check out [the blog](https://blog.getdbt.com/) for the latest news on dbt's development and best practices
+## 1. Base Layer
+- Exposes **static data** to the dbt project using **dbt seed**.
+
+## 2. Staging Layer
+- **Casting explicit data types** to ensure consistency.
+- **Renaming columns** for better readability.
+- **Mapping values** to standardized formats.
+
+## 3. Mart Layer
+- Exposes data to **DuckDB** for analysis and validation.
